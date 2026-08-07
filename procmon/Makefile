@@ -33,20 +33,24 @@ run: $(BIN)
 clean:
 	rm -rf $(BUILD)
 
-# --- Docker (macOS'ta /proc olmadigi icin gelistirme burada yapilir) ---
+# --- Docker (macOS has no procfs, so development happens in a Linux container) ---
+
+DOCKER_RUN := docker run --rm -it --name $(DOCKER_IMAGE) -v "$(CURDIR)":/work -w /work
 
 docker-build:
 	docker build -t $(DOCKER_IMAGE) .
 
-# Kaynagi mount edip interaktif kabuk acar.
+# Mounts the source and opens an interactive shell.
+# For a second shell in the SAME container (needed by mmap_demo):
+#   docker exec -it $(DOCKER_IMAGE) bash
 docker-shell: docker-build
-	docker run --rm -it -v "$(CURDIR)":/work -w /work $(DOCKER_IMAGE) bash
+	$(DOCKER_RUN) $(DOCKER_IMAGE) bash
 
-# Ayni kabuk, ama PID namespace paylasimli: container yerine VM'in tum islemleri gorunur.
+# Same shell, but sharing the host PID namespace: every process on the VM is visible.
 # Compare the two to see what PID namespace isolation actually filters.
 docker-shell-hostpid: docker-build
-	docker run --rm -it --pid=host -v "$(CURDIR)":/work -w /work $(DOCKER_IMAGE) bash
+	$(DOCKER_RUN) --pid=host $(DOCKER_IMAGE) bash
 
 docker-run: docker-build
-	docker run --rm -it -v "$(CURDIR)":/work -w /work $(DOCKER_IMAGE) \
+	$(DOCKER_RUN) $(DOCKER_IMAGE) \
 		bash -c "make --no-print-directory all && $(BIN) list"
