@@ -13,15 +13,16 @@ namespace
 
     void usage()
     {
-        std::cout << R"(evserver - the same TCP echo server written three ways
+        std::cout << R"(evserver - the same TCP echo server written four ways
 
 Usage:
-  evserver [--backend=threads|epoll|epoll-et] [--port=N] [--buffer=N] [--max-events=N]
+  evserver [--backend=threads|epoll|epoll-et|uring] [--port=N] [--buffer=N] [--max-events=N]
 
 Backends:
   threads    one blocking thread per connection (the baseline epoll replaced)
   epoll      epoll, level-triggered (default)
   epoll-et   epoll, edge-triggered - drains each socket until EAGAIN
+  uring      io_uring: operations batched into a shared ring, one kernel entry
 
 Stop with Ctrl-C: SIGINT arrives through a signalfd inside the event loop,
 so shutdown is part of the normal flow rather than an async handler.
@@ -106,9 +107,12 @@ int main(int argc, char **argv)
 
     if (s.requests > 0)
     {
-        const double syscalls = static_cast<double>(s.read_calls + s.write_calls + s.wait_calls);
+        // Counted by each backend rather than derived: under io_uring a read is a
+        // ring entry, so summing read+write+wait would overstate the kernel entries
+        // badly.
+        std::printf("  kernel entries         %llu\n", (unsigned long long)s.syscalls);
         std::printf("\n  syscalls per request   %.2f\n",
-                    syscalls / static_cast<double>(s.requests));
+                    static_cast<double>(s.syscalls) / static_cast<double>(s.requests));
     }
     return 0;
 }

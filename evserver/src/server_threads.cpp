@@ -20,15 +20,15 @@ namespace ev
 
         // The baseline: one blocking thread per connection.
         //
-        // This is the model epoll replaced, and it is worth building so the comparison is
-        // concrete rather than folklore. It is genuinely simpler - blocking read/write, no
-        // state machine, no readiness handling - and for a small number of busy connections
-        // it performs perfectly well.
+        // This is the model epoll replaced, and it is worth building so the comparison
+        // is concrete rather than folklore. It is genuinely simpler - blocking
+        // read/write, no state machine, no readiness handling - and for a small number
+        // of busy connections it performs perfectly well.
         //
-        // What it cannot do is scale to many mostly-idle connections: every connection costs
-        // a thread, and a thread costs a stack (8 MB of address space reserved by default)
-        // plus a scheduler entry. Run the load generator with --idle and watch RSS and thread
-        // count with procmon to see where it goes wrong.
+        // What it cannot do is scale to many mostly-idle connections: every connection
+        // costs a thread, and a thread costs a stack (8 MB of address space reserved by
+        // default) plus a scheduler entry. Run the load generator with --idle and watch
+        // RSS and thread count with procmon to see where it goes wrong.
         class ThreadServer : public Server
         {
         public:
@@ -61,7 +61,8 @@ namespace ev
 
             void run() override
             {
-                // poll() on both descriptors, so a shutdown signal interrupts the accept wait.
+                // poll() on both descriptors, so a shutdown signal interrupts the accept
+                // wait.
                 pollfd fds[2];
                 fds[0] = {listener_.get(), POLLIN, 0};
                 fds[1] = {signal_.get(), POLLIN, 0};
@@ -70,6 +71,7 @@ namespace ev
                 {
                     const int n = ::poll(fds, 2, -1);
                     stats_.bump(stats_.wait_calls);
+                    stats_.bump(stats_.syscalls);
                     if (n < 0)
                     {
                         if (errno == EINTR)
@@ -105,7 +107,8 @@ namespace ev
             StatsSnapshot stats() const override { return stats_.snapshot(); }
 
         private:
-            // One of these runs per connection, blocking on read until the peer goes away.
+            // One of these runs per connection, blocking on read until the peer goes
+            // away.
             void serve(int fd)
             {
                 Socket conn(fd);
@@ -115,6 +118,7 @@ namespace ev
                 {
                     const ssize_t n = ::read(conn.get(), buffer.data(), buffer.size());
                     stats_.bump(stats_.read_calls);
+                    stats_.bump(stats_.syscalls);
                     if (n <= 0)
                     {
                         if (n < 0 && errno == EINTR)
@@ -131,6 +135,7 @@ namespace ev
                         const ssize_t w = ::write(conn.get(), buffer.data() + written,
                                                   static_cast<size_t>(n) - written);
                         stats_.bump(stats_.write_calls);
+                        stats_.bump(stats_.syscalls);
                         if (w <= 0)
                         {
                             if (w < 0 && errno == EINTR)

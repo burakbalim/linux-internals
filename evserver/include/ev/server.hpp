@@ -14,6 +14,7 @@ namespace ev
         ThreadPerConnection, // one blocking thread per connection - the baseline
         EpollLevel,          // epoll, level-triggered
         EpollEdge,           // epoll, edge-triggered
+        IoUring,             // io_uring: operations batched into one kernel entry
     };
 
     struct Config

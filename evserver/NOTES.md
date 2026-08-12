@@ -72,32 +72,41 @@ None of this is resident — RSS is only 58.7 MB — which is exactly the VSZ/RS
 from `procmon`. But address space is still finite, and this is how a 32-bit process runs
 out of it long before it runs out of RAM.
 
-## 4. Edge-triggered costs an extra syscall per request
+## 4. Syscalls per request, and what io_uring actually changes
 
-Counters from the server side, syscalls per request:
+Counted by each backend explicitly rather than derived, because under io_uring a read is
+a ring entry, not a kernel entry — summing read+write+wait would be meaningless:
 
-| Backend | read() | write() | epoll_wait | per request |
+| Backend | Throughput | p99 | Kernel entries | **syscalls/request** |
 |---|---|---|---|---|
-| threads | 1,485,751 | 1,485,743 | 9 | **2.00** |
-| epoll LT | 395,899 | 395,891 | 78,261 | **2.20** |
-| epoll ET | **731,745** | 365,942 | 72,276 | **3.20** |
+| threads | 285,362 req/s | 130 µs | 2,856,519 | **2.00** |
+| epoll LT | 105,105 req/s | 157 µs | 1,154,858 | **2.20** |
+| epoll ET | 101,608 req/s | 140 µs | 1,623,627 | **3.20** |
+| io_uring | 105,941 req/s | 126 µs | 134,249 | **0.25** |
 
-Edge-triggered did **2× the reads** for the same number of requests, and `EAGAIN` was
-returned 365,795 times — once per request.
+**io_uring does 8.8× fewer kernel entries than epoll** for the same work. That is the
+entire point of the design, and it is visible in a single number.
 
-That is inherent to the mode, not a bug: ET only reports readiness when it *changes*, so
-the loop must keep reading until `EAGAIN` to know the socket is drained. For a request/
-response protocol where one read gets the whole message, that second read is pure
-overhead. And it showed: ET was slightly *slower* than LT (91k vs 99k), with a worse p99
-(309 µs vs 173 µs).
+Why it works: the submission and completion queues are shared memory, mapped into both the
+process and the kernel. Filling in a request is a memory write, costing no syscall at all.
+Only `io_uring_enter()` crosses into the kernel, and one call carries every operation
+queued since the last one. With epoll, N ready connections cost 1 `epoll_wait` + N `read` +
+N `write`; here they cost one entry.
 
-**ET pays off when a single wakeup carries lots of data** — bulk transfers, or many
-messages batched into one arrival — where one wakeup amortises across many reads. For
-small request/response traffic, level-triggered is both simpler and faster.
+Edge-triggered goes the other way. It did **2× the reads** for the same requests, returning
+`EAGAIN` once per request, because ET only reports readiness when it *changes* — the socket
+must be drained until `EAGAIN` to know it is empty. For a request/response protocol where
+one read gets the whole message, that second read is pure overhead: 3.20 vs 2.20, and it
+measured slower.
 
-The dangerous part of ET is not performance, it is correctness: forget to drain, and the
-leftover bytes are never reported again. The connection just hangs. Same for `accept()` —
-one `accept` per wakeup silently drops connections that arrived in the same instant.
+**But throughput barely moved** (105,941 vs 105,105 req/s). At this scale syscalls are not
+the bottleneck — the single event-loop thread is. io_uring's advantage is real but it is
+headroom, not a free speedup, and it only converts into throughput once the syscall cost
+actually dominates: very high connection counts, or storage I/O where each operation is
+otherwise a blocking syscall.
+
+The dangerous part of ET remains correctness, not performance: forget to drain and the
+leftover bytes are never reported again, so the connection just hangs. Same for `accept()`.
 
 ## 5. epoll_wait wakeups are not one per request
 
@@ -129,8 +138,9 @@ process before `signalfd` ever reports anything.
 
 - Multi-threaded epoll with `SO_REUSEPORT`: does it reach the thread backend's throughput
   while keeping the idle-connection cost near zero? This is the missing comparison.
-- io_uring: the promise is fewer syscalls per request than 2.00. Worth measuring against
-  the table in section 4.
+- io_uring with `SQPOLL`, where a kernel thread polls the submission queue: syscalls per
+  request should approach zero. Does the dedicated core pay for itself?
+- Registered buffers and multishot accept, both of which cut per-operation setup further.
 - Does `EPOLLEXCLUSIVE` change the accept pattern under multiple event loops?
 - Where does the 24 ms max latency in the thread backend come from — scheduler preemption,
   or the loadgen's own contention?

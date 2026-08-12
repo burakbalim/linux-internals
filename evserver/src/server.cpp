@@ -5,6 +5,7 @@ namespace ev
 
     std::unique_ptr<Server> make_epoll_server(const Config &cfg);
     std::unique_ptr<Server> make_thread_server(const Config &cfg);
+    std::unique_ptr<Server> make_uring_server(const Config &cfg);
 
     std::unique_ptr<Server> make_server(const Config &cfg)
     {
@@ -15,6 +16,8 @@ namespace ev
         case Backend::EpollLevel:
         case Backend::EpollEdge:
             return make_epoll_server(cfg);
+        case Backend::IoUring:
+            return make_uring_server(cfg);
         }
         return nullptr;
     }
@@ -29,6 +32,8 @@ namespace ev
             return "epoll (level-triggered)";
         case Backend::EpollEdge:
             return "epoll (edge-triggered)";
+        case Backend::IoUring:
+            return "io_uring";
         }
         return "unknown";
     }
@@ -46,6 +51,10 @@ namespace ev
         else if (text == "epoll-et")
         {
             *out = Backend::EpollEdge;
+        }
+        else if (text == "uring")
+        {
+            *out = Backend::IoUring;
         }
         else
         {

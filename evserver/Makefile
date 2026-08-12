@@ -3,7 +3,7 @@ CXXFLAGS ?= -std=c++17 -Wall -Wextra -Wpedantic -O2 -g -pthread
 INCLUDES := -Iinclude
 
 BUILD    := build
-LIB_SRC  := src/socket.cpp src/signals.cpp src/server.cpp src/server_epoll.cpp src/server_threads.cpp
+LIB_SRC  := src/socket.cpp src/signals.cpp src/server.cpp src/server_epoll.cpp src/server_threads.cpp src/server_uring.cpp
 LIB_OBJ  := $(LIB_SRC:src/%.cpp=$(BUILD)/%.o)
 
 BIN      := $(BUILD)/evserver
@@ -23,7 +23,7 @@ $(BUILD)/%.o: src/%.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 $(BIN): $(LIB_OBJ) $(BUILD)/main.o
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -luring -o $@
 
 $(LOADGEN): bench/loadgen.cpp $(BUILD)/socket.o | $(BUILD)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(BUILD)/socket.o -o $@

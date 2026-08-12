@@ -1,6 +1,6 @@
 # evserver
 
-The same TCP echo server written three ways, so the differences between I/O models can
+The same TCP echo server written four ways, so the differences between I/O models can
 be measured rather than argued about.
 
 | Backend | Model |
@@ -8,6 +8,7 @@ be measured rather than argued about.
 | `threads` | one blocking thread per connection — the baseline epoll replaced |
 | `epoll` | single-threaded epoll, level-triggered |
 | `epoll-et` | single-threaded epoll, edge-triggered — drains each socket until `EAGAIN` |
+| `uring` | io_uring — operations submitted through a shared ring, batched into one kernel entry |
 
 Shutdown goes through **`signalfd`**: `SIGINT` is blocked and delivered as a readable
 descriptor sitting in `epoll` alongside the sockets, so stopping the server is part of
@@ -63,6 +64,13 @@ The distinction is the reason both epoll modes are here:
 
 Compare the `read() calls` and `reads returning EAGAIN` counters between the two modes
 to see the trade being made.
+
+## Syscalls per request
+
+The counter printed on exit is the clearest way to separate these models. Measured:
+threads **2.00**, epoll **2.20**, epoll-et **3.20**, io_uring **0.25** — io_uring does
+8.8× fewer kernel entries than epoll for the same work, because filling a submission
+queue entry is a memory write, not a syscall. Full numbers in [NOTES.md](NOTES.md).
 
 ## Options
 

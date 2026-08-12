@@ -20,14 +20,15 @@ namespace ev
         //
         // The difference between the two modes is the whole point of this file:
         //
-        //   Level-triggered (default): epoll_wait reports a descriptor as ready as long as
-        //   data remains buffered. Reading once per wakeup is correct - the next epoll_wait
-        //   will report it again if there is more.
+        //   Level-triggered (default): epoll_wait reports a descriptor as ready as long
+        //   as data remains buffered. Reading once per wakeup is correct - the next
+        //   epoll_wait will report it again if there is more.
         //
         //   Edge-triggered (EPOLLET): epoll_wait reports readiness only when the state
-        //   CHANGES, i.e. when new data arrives. If you do not drain the socket until EAGAIN,
-        //   the leftover bytes will never be reported again and the connection hangs. Same
-        //   applies to accept(): you must loop until EAGAIN or you silently drop connections.
+        //   CHANGES, i.e. when new data arrives. If you do not drain the socket until
+        //   EAGAIN, the leftover bytes will never be reported again and the connection
+        //   hangs. Same applies to accept(): you must loop until EAGAIN or you silently
+        //   drop connections.
         class EpollServer : public Server
         {
         public:
@@ -61,8 +62,9 @@ namespace ev
                     return false;
                 }
 
-                // The listener is registered level-triggered even in ET mode; the accept loop
-                // below drains it anyway, and this keeps the failure mode less surprising.
+                // The listener is registered level-triggered even in ET mode; the accept
+                // loop below drains it anyway, and this keeps the failure mode less
+                // surprising.
                 if (!add_to_epoll(listener_.get(), EPOLLIN, error))
                 {
                     return false;
@@ -79,6 +81,7 @@ namespace ev
                     const int n = ::epoll_wait(epoll_.get(), events.data(),
                                                static_cast<int>(events.size()), -1);
                     stats_.bump(stats_.wait_calls);
+                    stats_.bump(stats_.syscalls);
 
                     if (n < 0)
                     {
@@ -136,8 +139,9 @@ namespace ev
 
             void accept_connections()
             {
-                // Loop until EAGAIN. Several connections can arrive between two wakeups, and
-                // in edge-triggered mode a single accept() would leave the rest unreported.
+                // Loop until EAGAIN. Several connections can arrive between two wakeups,
+                // and in edge-triggered mode a single accept() would leave the rest
+                // unreported.
                 for (;;)
                 {
                     const int fd =
@@ -178,6 +182,7 @@ namespace ev
                 {
                     const ssize_t n = ::read(fd, buffer_.data(), buffer_.size());
                     stats_.bump(stats_.read_calls);
+                    stats_.bump(stats_.syscalls);
 
                     if (n > 0)
                     {
@@ -224,6 +229,7 @@ namespace ev
                 {
                     const ssize_t n = ::write(fd, data + written, len - written);
                     stats_.bump(stats_.write_calls);
+                    stats_.bump(stats_.syscalls);
                     if (n > 0)
                     {
                         written += static_cast<size_t>(n);
@@ -247,7 +253,8 @@ namespace ev
 
             void close_connection(int fd)
             {
-                // epoll_ctl(DEL) is implicit on close, but being explicit documents the intent.
+                // epoll_ctl(DEL) is implicit on close, but being explicit documents the
+                // intent.
                 ::epoll_ctl(epoll_.get(), EPOLL_CTL_DEL, fd, nullptr);
                 ::close(fd);
                 stats_.bump(stats_.closed);

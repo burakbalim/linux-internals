@@ -2,12 +2,16 @@
 //
 // Two knobs matter, and they exercise different things:
 //
-//   --threads N   active connections doing strict request/response. Each one waits for
-//                 its reply before sending again, so the recorded latency is real.
+//   --threads N   active connections doing strict request/response. Each one
+//   waits for
+//                 its reply before sending again, so the recorded latency is
+//                 real.
 //
-//   --idle M      connections that are opened and then left silent. They cost the
-//                 server nothing under epoll, but under thread-per-connection each one
-//                 pins a thread and its stack. This is where the models diverge.
+//   --idle M      connections that are opened and then left silent. They cost
+//   the
+//                 server nothing under epoll, but under thread-per-connection
+//                 each one pins a thread and its stack. This is where the
+//                 models diverge.
 //
 // While it runs, inspect the server with:
 //   procmon show <server pid>       RSS and thread count
@@ -136,7 +140,8 @@ int main(int argc, char **argv)
         }
     }
 
-    // Idle connections are opened first and held open by keeping the sockets alive.
+    // Idle connections are opened first and held open by keeping the sockets
+    // alive.
     std::vector<ev::Socket> idle;
     idle.reserve(static_cast<size_t>(opt.idle));
     for (int i = 0; i < opt.idle; ++i)

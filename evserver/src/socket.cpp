@@ -68,7 +68,8 @@ namespace ev
             return Socket();
         }
 
-        // Without SO_REUSEADDR a restart fails while old connections sit in TIME_WAIT.
+        // Without SO_REUSEADDR a restart fails while old connections sit in
+        // TIME_WAIT.
         int on = 1;
         if (::setsockopt(sock.get(), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0)
         {
@@ -133,7 +134,8 @@ namespace ev
 
     bool set_nodelay(int fd)
     {
-        // Disables Nagle: without it small echo replies get delayed waiting for more data.
+        // Disables Nagle: without it small echo replies get delayed waiting for more
+        // data.
         int on = 1;
         return ::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) == 0;
     }
