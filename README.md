@@ -9,6 +9,7 @@ Each subdirectory is an independent project with its own build, README and notes
 |---|---|
 | [`procmon/`](procmon) | Processes, threads, virtual memory, page cache, mmap and scheduling, read straight from `/proc` |
 | [`evserver/`](evserver) | The same TCP echo server as threads, epoll level-triggered and edge-triggered, measured side by side |
+| [`minicontainer/`](minicontainer) | Namespaces, cgroup v2 limits and pivot_root — a container runtime cut down to the parts that do the work |
 
 ## Approach
 
@@ -28,4 +29,5 @@ project ships a `Dockerfile` and `make docker-shell`.
 ```
 procmon/          /proc-based process and memory inspector
 evserver/         TCP echo server in three I/O models, with a load generator
+minicontainer/    namespaces + cgroups + pivot_root, in about 400 lines
 ```
