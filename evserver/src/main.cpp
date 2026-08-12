@@ -8,10 +8,12 @@
 
 #include "ev/server.hpp"
 
-namespace {
+namespace
+{
 
-void usage() {
-    std::cout << R"(evserver - the same TCP echo server written three ways
+    void usage()
+    {
+        std::cout << R"(evserver - the same TCP echo server written three ways
 
 Usage:
   evserver [--backend=threads|epoll|epoll-et] [--port=N] [--buffer=N] [--max-events=N]
@@ -26,31 +28,44 @@ so shutdown is part of the normal flow rather than an async handler.
 
 Counters are printed on exit. Compare them across backends with bench/loadgen.
 )";
-}
+    }
 
-}  // namespace
+} // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     ev::Config cfg;
     const std::vector<std::string> args(argv + 1, argv + argc);
 
-    for (const auto& arg : args) {
-        if (arg == "-h" || arg == "--help") {
+    for (const auto &arg : args)
+    {
+        if (arg == "-h" || arg == "--help")
+        {
             usage();
             return 0;
         }
-        if (arg.rfind("--backend=", 0) == 0) {
-            if (!ev::parse_backend(arg.substr(10), &cfg.backend)) {
+        if (arg.rfind("--backend=", 0) == 0)
+        {
+            if (!ev::parse_backend(arg.substr(10), &cfg.backend))
+            {
                 std::cerr << "Unknown backend: " << arg.substr(10) << '\n';
                 return 2;
             }
-        } else if (arg.rfind("--port=", 0) == 0) {
+        }
+        else if (arg.rfind("--port=", 0) == 0)
+        {
             cfg.port = static_cast<uint16_t>(std::stoi(arg.substr(7)));
-        } else if (arg.rfind("--buffer=", 0) == 0) {
+        }
+        else if (arg.rfind("--buffer=", 0) == 0)
+        {
             cfg.buffer_size = static_cast<size_t>(std::stoul(arg.substr(9)));
-        } else if (arg.rfind("--max-events=", 0) == 0) {
+        }
+        else if (arg.rfind("--max-events=", 0) == 0)
+        {
             cfg.max_events = std::stoi(arg.substr(13));
-        } else {
+        }
+        else
+        {
             std::cerr << "Unknown option: " << arg << "\n\n";
             usage();
             return 2;
@@ -59,15 +74,16 @@ int main(int argc, char** argv) {
 
     auto server = ev::make_server(cfg);
     std::string error;
-    if (!server->start(&error)) {
+    if (!server->start(&error))
+    {
         std::cerr << "Failed to start: " << error << '\n';
         return 1;
     }
 
     std::cout << "evserver listening on port " << cfg.port << '\n'
               << "  backend: " << ev::backend_name(cfg.backend) << '\n'
-              << "  pid:     " << ::getpid() << "  (inspect with: procmon show "
-              << ::getpid() << ")\n\n"
+              << "  pid:     " << ::getpid() << "  (inspect with: procmon show " << ::getpid()
+              << ")\n\n"
               << "Ctrl-C to stop.\n";
 
     server->run();
@@ -83,11 +99,13 @@ int main(int argc, char** argv) {
     std::printf("  wait calls             %llu   (epoll_wait / poll)\n",
                 (unsigned long long)s.wait_calls);
     std::printf("  reads returning EAGAIN %llu\n", (unsigned long long)s.eagain);
-    if (s.threads_spawned > 0) {
+    if (s.threads_spawned > 0)
+    {
         std::printf("  threads spawned        %llu\n", (unsigned long long)s.threads_spawned);
     }
 
-    if (s.requests > 0) {
+    if (s.requests > 0)
+    {
         const double syscalls = static_cast<double>(s.read_calls + s.write_calls + s.wait_calls);
         std::printf("\n  syscalls per request   %.2f\n",
                     syscalls / static_cast<double>(s.requests));

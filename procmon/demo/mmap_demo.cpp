@@ -17,30 +17,36 @@
 #include "proc/mapped_file.hpp"
 #include "proc/process.hpp"
 
-namespace {
+namespace
+{
 
-void create_file(const std::string& path, size_t megabytes) {
-    std::ofstream out(path, std::ios::binary | std::ios::trunc);
-    const std::string chunk(1024 * 1024, 'A');
-    for (size_t i = 0; i < megabytes; ++i) {
-        out.write(chunk.data(), static_cast<std::streamsize>(chunk.size()));
+    void create_file(const std::string &path, size_t megabytes)
+    {
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        const std::string chunk(1024 * 1024, 'A');
+        for (size_t i = 0; i < megabytes; ++i)
+        {
+            out.write(chunk.data(), static_cast<std::streamsize>(chunk.size()));
+        }
     }
-}
 
-void report(const std::string& label, int pid) {
-    const auto info = proc::read_process(pid);
-    if (!info) {
-        return;
+    void report(const std::string &label, int pid)
+    {
+        const auto info = proc::read_process(pid);
+        if (!info)
+        {
+            return;
+        }
+        std::cout << "  " << label << "\n"
+                  << "    VSZ=" << proc::human_bytes(info->vsize_bytes)
+                  << "  RSS=" << proc::human_bytes(info->rss_bytes)
+                  << "  minflt=" << info->minor_faults << "  majflt=" << info->major_faults << '\n';
     }
-    std::cout << "  " << label << "\n"
-              << "    VSZ=" << proc::human_bytes(info->vsize_bytes)
-              << "  RSS=" << proc::human_bytes(info->rss_bytes)
-              << "  minflt=" << info->minor_faults << "  majflt=" << info->major_faults << '\n';
-}
 
-}  // namespace
+} // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     const size_t megabytes = (argc > 1) ? std::strtoul(argv[1], nullptr, 10) : 64;
     const std::string path = "/tmp/mmap_demo.bin";
     const int pid = static_cast<int>(::getpid());
@@ -53,7 +59,8 @@ int main(int argc, char** argv) {
     report("After writing the file", pid);
 
     auto mapping = proc::MappedFile::open(path, /*writable=*/false, /*shared=*/true);
-    if (!mapping.valid()) {
+    if (!mapping.valid())
+    {
         std::cerr << "mmap failed: " << mapping.error() << '\n';
         return 1;
     }
@@ -67,7 +74,8 @@ int main(int argc, char** argv) {
     // Reading one byte per page triggers a page fault for that page.
     const size_t ps = static_cast<size_t>(proc::page_size());
     volatile unsigned long long sum = 0;
-    for (size_t offset = 0; offset < mapping.size(); offset += ps) {
+    for (size_t offset = 0; offset < mapping.size(); offset += ps)
+    {
         sum += mapping.data()[offset];
     }
     (void)sum;
